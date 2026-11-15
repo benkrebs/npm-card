@@ -1,4 +1,4 @@
-import { mdiClose, mdiLockAlertOutline, mdiLockClock, mdiMagnify } from "@mdi/js";
+import { mdiClose, mdiDeleteOutline, mdiLockAlertOutline, mdiLockClock, mdiMagnify } from "@mdi/js";
 import { html, LitElement, nothing, type PropertyValues, type TemplateResult } from "lit";
 import {
   buildViews,
@@ -31,6 +31,7 @@ export class NpmCard extends LitElement {
     _search: { state: true },
     _pending: { state: true },
     _confirm: { state: true },
+    _deleting: { state: true },
   };
 
   hass?: HomeAssistant;
@@ -39,8 +40,9 @@ export class NpmCard extends LitElement {
   private _search = "";
   /** Entity id → state the switch was asked to take. */
   private _pending: Record<string, "on" | "off"> = {};
-  /** Entity id of the host that waits for "Disable?" to be confirmed. */
+  /** Action waiting for confirmation: `disable:<entity>`, `delete:<entity>` or `delete-all`. */
   private _confirm?: string;
+  private _deleting = false;
 
   private _hosts: NpmHost[] = [];
   private _certIds: string[] = [];
@@ -154,7 +156,7 @@ export class NpmCard extends LitElement {
   private _onToggle(view: HostView): void {
     const enable = this._effectiveState(view) !== "enabled";
     if (!enable && this._config?.confirm_disable) {
-      this._confirm = view.host.entityId;
+      this._confirm = `disable:${view.host.entityId}`;
       return;
     }
     void this._switch(view.host, enable);
@@ -172,10 +174,36 @@ export class NpmCard extends LitElement {
     }
   }
 
+  /** Administrators may remove orphaned entities from the entity registry. */
+  private _canDelete(): boolean {
+    return this._config?.allow_delete !== false && !!this.hass?.user?.is_admin;
+  }
+
+  /** Remove entities that NPM Switches no longer provides from the entity registry. */
+  private async _delete(hosts: NpmHost[]): Promise<void> {
+    this._confirm = undefined;
+    const hass = this.hass;
+    if (!hass || !hosts.length || !this._canDelete()) return;
+    this._deleting = true;
+    const results = await Promise.allSettled(
+      hosts.map((h) => hass.callWS({ type: "config/entity_registry/remove", entity_id: h.entityId })),
+    );
+    this._deleting = false;
+    const failed = hosts.filter((_, i) => results[i].status === "rejected");
+    const done = hosts.length - failed.length;
+    const message = failed.length
+      ? this._t("delete_failed", { names: failed.map((h) => h.name).join(", ") })
+      : done === 1
+        ? this._t("deleted_one")
+        : this._t("deleted", { count: done });
+    this._fire("hass-notification", { message });
+    if (!failed.length && this._filter === "orphaned") this._filter = "all";
+  }
+
   /** State shown on the switch: the requested one while a toggle is in flight. */
   private _effectiveState(view: HostView): HostState {
     const pending = this._pending[view.host.entityId];
-    if (!pending || view.state === "unavailable") return view.state;
+    if (!pending || view.state === "unavailable" || view.state === "orphaned") return view.state;
     return pending === "on" ? "enabled" : "disabled";
   }
 
@@ -224,6 +252,9 @@ export class NpmCard extends LitElement {
             <span class="dot"></span><strong>${counts.unavailable}</strong><span>${this._t("count_unavailable")}</span>
           </span>`
         : nothing,
+      counts.orphaned && config.show_orphaned !== false
+        ? this._renderCount("orphaned", counts.orphaned, this._t("count_orphaned"), colors.orphaned)
+        : nothing,
     ];
     const hasChips = chips.some((c) => c !== nothing);
     if (!showTitle && !hasChips) return nothing;
@@ -231,6 +262,32 @@ export class NpmCard extends LitElement {
       <div class="header">
         ${showTitle ? html`<div class="title">${config.title ?? this._t("title")}</div>` : nothing}
         ${hasChips ? html`<div class="counts">${chips}</div>` : nothing}
+      </div>
+    `;
+  }
+
+  /** Hint with "Delete all" when hosts were deleted in NPM but their entities are still around. */
+  private _renderOrphanBanner(orphans: NpmHost[]): TemplateResult | typeof nothing {
+    if (!orphans.length || !this._canDelete()) return nothing;
+    const count = orphans.length;
+    const confirming = this._confirm === "delete-all";
+    return html`
+      <div class="orphans" title=${this._t("orphaned_tooltip")}>
+        <span>
+          ${confirming
+            ? count === 1
+              ? this._t("confirm_delete_one")
+              : this._t("confirm_delete_all", { count })
+            : count === 1
+              ? this._t("orphaned_hint_one")
+              : this._t("orphaned_hint", { count })}
+        </span>
+        ${confirming
+          ? html`<button class="yes" ?disabled=${this._deleting} @click=${() => this._delete(orphans)}>${this._t("yes")}</button>
+              <button class="no" @click=${() => (this._confirm = undefined)}>${this._t("no")}</button>`
+          : html`<button class="delete-all" ?disabled=${this._deleting} @click=${() => (this._confirm = "delete-all")}>
+              ${this._icon(undefined, mdiDeleteOutline)}<span>${count === 1 ? this._t("delete") : this._t("delete_all")}</span>
+            </button>`}
       </div>
     `;
   }
@@ -300,15 +357,28 @@ export class NpmCard extends LitElement {
   }
 
   private _renderToggle(view: HostView): TemplateResult | typeof nothing {
-    if (this._config?.show_toggle === false) return nothing;
     const host = view.host;
-    if (this._confirm === host.entityId) {
-      return html`<div class="confirm">
-        <span>${this._t("confirm_disable")}</span>
-        <button class="yes" @click=${() => this._switch(host, false)}>${this._t("yes")}</button>
-        <button class="no" @click=${() => (this._confirm = undefined)}>${this._t("no")}</button>
-      </div>`;
+    const confirm = (question: TranslationKey, action: () => void) => html`<div class="confirm">
+      <span>${this._t(question)}</span>
+      <button class="yes" ?disabled=${this._deleting} @click=${action}>${this._t("yes")}</button>
+      <button class="no" @click=${() => (this._confirm = undefined)}>${this._t("no")}</button>
+    </div>`;
+    if (this._confirm === `disable:${host.entityId}`) return confirm("confirm_disable", () => this._switch(host, false));
+    if (this._confirm === `delete:${host.entityId}`) return confirm("confirm_delete", () => this._delete([host]));
+    if (view.state === "orphaned") {
+      if (!this._canDelete()) return nothing;
+      const label = this._t("delete_entity", { name: host.name });
+      return html`<button
+        class="delete"
+        title=${label}
+        aria-label=${label}
+        ?disabled=${this._deleting}
+        @click=${() => (this._confirm = `delete:${host.entityId}`)}
+      >
+        ${this._icon(undefined, mdiDeleteOutline)}
+      </button>`;
     }
+    if (this._config?.show_toggle === false) return nothing;
     const state = this._effectiveState(view);
     const on = state === "enabled";
     const pending = !!this._pending[host.entityId];
@@ -330,7 +400,10 @@ export class NpmCard extends LitElement {
     const host = view.host;
     const state = this._effectiveState(view);
     const tappable = (config.tap_action ?? "more-info") !== "none" && !(config.tap_action === "open" && !host.url);
-    const title = host.domains.join("\n") + (host.forward ? `\n→ ${host.forward}` : "");
+    const title =
+      host.domains.join("\n") +
+      (host.forward ? `\n→ ${host.forward}` : "") +
+      (view.state === "orphaned" ? `\n${this._t("orphaned_tooltip")}` : "");
     return html`
       <div class="row ${state}" style="--state-color: ${colors[state]}">
         ${config.show_icon !== false
@@ -356,10 +429,13 @@ export class NpmCard extends LitElement {
       enabled: resolveColor(config.colors?.enabled, DEFAULT_STATE_COLORS.enabled),
       disabled: resolveColor(config.colors?.disabled, DEFAULT_STATE_COLORS.disabled),
       unavailable: resolveColor(config.colors?.unavailable, DEFAULT_STATE_COLORS.unavailable),
+      orphaned: resolveColor(config.colors?.orphaned, DEFAULT_STATE_COLORS.orphaned),
     };
     const certs = this._certIds.length ? resolveCertificates(hass, this._certIds) : [];
-    const views = buildViews(hass, this._hosts, certs);
-    const counts = countViews(views);
+    const allViews = buildViews(hass, this._hosts, certs);
+    const counts = countViews(allViews);
+    const orphans = allViews.filter((v) => v.state === "orphaned").map((v) => v.host);
+    const views = config.show_orphaned === false ? allViews.filter((v) => v.state !== "orphaned") : allViews;
     const visible = sortViews(filterViews(views, this._filter, this._search), config);
     const groups = config.group_by_type !== false ? groupViews(visible) : [];
     const grouped = groups.length > 1;
@@ -390,7 +466,7 @@ export class NpmCard extends LitElement {
 
     return html`
       <ha-card class=${header === nothing ? "header-hidden" : ""}>
-        ${header} ${this._renderSearch()}
+        ${header} ${this._renderOrphanBanner(orphans)} ${this._renderSearch()}
         <div class="list">${list}</div>
       </ha-card>
     `;

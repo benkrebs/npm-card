@@ -17,6 +17,9 @@ integration (Marketplace / HACS): all hosts are discovered automatically, nothin
 - Proxy hosts, redirections, streams and 404 hosts, **grouped by type** (each type can be hidden).
 - Hosts with several domains show the others in the second line (`+2 more`, or the full list).
 - **Certificate warning**: a badge with the days left when a certificate expires soon (needs the certificate sensors of NPM Switches).
+- **Clean up deleted hosts**: when a host was deleted in NPM, its entity stays in Home Assistant ("no longer provided
+  by the npm_switches integration"). The card marks it as *orphaned* and offers administrators to delete it – per row
+  or all at once.
 - **Optional confirmation** before a host is disabled – useful for the host that serves Home Assistant itself.
 - Search field, sort order, start filter, hidden domain suffix (`cloud.example.com` → `cloud`), per-host names and icons.
 - Every element can be shown or hidden. Visual editor, German and English.
@@ -109,10 +112,12 @@ entities:
 | `group_by_type`      | `true`         | Headings per host type when more than one type is shown.                             |
 | `hide_domain_suffix` | –              | Domain suffixes removed from the shown name, e.g. `[example.com]`.                   |
 | `sort`               | `name`         | `name`, `enabled_first`, `disabled_first`, `config` (order of `entities`; default when `entities` is set). |
-| `filter`             | `all`          | Filter when the card loads: `all`, `enabled`, `disabled`.                            |
+| `filter`             | `all`          | Filter when the card loads: `all`, `enabled`, `disabled`, `orphaned`.                |
 | `tap_action`         | `more-info`    | Tap on icon / name: `more-info`, `open` (open the domain in a new tab), `none`.      |
 | `confirm_disable`    | `false`        | Ask "Disable?" before a host is disabled.                                            |
-| `colors`             | see below      | Color per state: `enabled`, `disabled`, `unavailable`.                               |
+| `show_orphaned`      | `true`         | List entities of hosts that were deleted in NPM (struck through, with an *orphaned* counter). |
+| `allow_delete`       | `true`         | Offer administrators to delete those entities (row button and "Delete all").         |
+| `colors`             | see below      | Color per state: `enabled`, `disabled`, `unavailable`, `orphaned`.                   |
 
 Colors accept Home Assistant theme color names (`red`, `deep-orange`, `amber`, `green`, `primary`, …) or any CSS color
 (`#e53935`, `rgb(…)`, `var(--my-color)`). Defaults follow your theme: `--success-color`, `--disabled-color`, `--error-color`.
@@ -144,6 +149,19 @@ The card finds the switches by their integration (`npm_switches`), so renamed en
 the host on or off through `switch.turn_on` / `switch.turn_off`; NPM Switches then calls the NPM API. While NPM
 answers, the switch pulses; it shows an error when the host could not be switched. The counters are counted from the
 switches in the card, so they follow your filters (`host_types`, `devices`, `exclude_entities`).
+
+### Orphaned entities
+
+When you delete a host in NPM, NPM Switches stops providing its switch, but Home Assistant keeps the entity in the
+entity registry: it stays *unavailable* and its more-info dialog says that the integration no longer provides it.
+Home Assistant marks such a restored entity with the attribute `restored: true` – that is how the card tells it apart
+from a switch that is only unavailable because NPM is offline.
+
+The card shows these entries struck through as *No longer in NPM*, counts them as *orphaned* (not as available) and,
+for administrators, shows a hint with **Delete all** plus a delete button per row. Deleting asks for confirmation and
+then removes the entity from the entity registry (`config/entity_registry/remove`) – the same as deleting it under
+**Settings → Entities**. Users without admin rights only see the entries. `allow_delete: false` hides the buttons,
+`show_orphaned: false` hides the entries.
 
 > **Careful:** disabling the proxy host that serves Home Assistant cuts off your remote access. Use
 > `confirm_disable: true`, or leave that host out with `exclude_entities`.

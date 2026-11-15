@@ -44,16 +44,20 @@ export interface HomeAssistant {
     target?: Record<string, unknown>,
     notifyOnError?: boolean,
   ): Promise<unknown>;
+  callWS<T = unknown>(message: Record<string, unknown>): Promise<T>;
 }
 
 /** NPM host types, as created by the NPM Switches integration. */
 export type HostType = "proxy" | "redirect" | "stream" | "dead";
 
-/** Switch state of a host in NPM. */
-export type HostState = "enabled" | "disabled" | "unavailable";
+/**
+ * Switch state of a host in NPM. `orphaned`: the entity is still in the entity registry, but NPM Switches no longer
+ * provides it (the host was deleted in NPM); Home Assistant marks its restored state with `restored: true`.
+ */
+export type HostState = "enabled" | "disabled" | "unavailable" | "orphaned";
 
 /** Header counter / list filter. */
-export type HostFilter = "all" | "enabled" | "disabled";
+export type HostFilter = "all" | "enabled" | "disabled" | "orphaned";
 
 export type SortMode = "name" | "enabled_first" | "disabled_first" | "config";
 
@@ -109,6 +113,10 @@ export interface CardConfig {
   tap_action?: TapAction;
   /** Ask before a host is disabled. */
   confirm_disable?: boolean;
+  /** List entities of hosts that no longer exist in NPM. Default true. */
+  show_orphaned?: boolean;
+  /** Offer administrators to delete those entities. Default true. */
+  allow_delete?: boolean;
   /** Days before expiry from which a certificate is shown as warning. */
   cert_warning_days?: number;
   colors?: Partial<Record<HostState, string>>;
@@ -149,4 +157,5 @@ export interface HostCounts {
   enabled: number;
   disabled: number;
   unavailable: number;
+  orphaned: number;
 }

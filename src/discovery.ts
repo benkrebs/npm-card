@@ -42,7 +42,7 @@ export function hostType(hass: HomeAssistant, entityId: string, deviceId?: strin
   let friendly = String(attributes.friendly_name ?? "").trim();
   const device = deviceName(hass, deviceId);
   if (device && friendly.toLowerCase().startsWith(device.toLowerCase())) friendly = friendly.slice(device.length).trim();
-  const word = /^(proxy|redirect|stream|404)\s/i.exec(friendly)?.[1].toLowerCase();
+  const word = /^(proxy|redirect|stream|404)\b/i.exec(friendly)?.[1].toLowerCase();
   if (word) return TYPE_WORDS[word];
 
   const fromId = /_(proxy|redirect|stream|404)_/.exec(entityId.split(".", 2)[1] ?? "")?.[1];
@@ -58,6 +58,15 @@ export function shortenDomain(domain: string, suffixes: string[] | undefined): s
     if (domain.toLowerCase().endsWith(`.${suffix}`)) return domain.slice(0, -suffix.length - 1);
   }
   return domain;
+}
+
+/** Entity name without instance name, host type word and quotes. */
+function entityLabel(hass: HomeAssistant, entityId: string, deviceId?: string | null): string {
+  let label = String(hass.states[entityId]?.attributes.friendly_name ?? "").trim();
+  const device = deviceName(hass, deviceId);
+  if (device && label.toLowerCase().startsWith(device.toLowerCase())) label = label.slice(device.length).trim();
+  label = label.replace(/^(proxy|redirect|stream|404)\b[\s:–-]*/i, "").replace(/^["'„“”]+|["'„“”]+$/g, "").trim();
+  return label || entityId.split(".", 2)[1];
 }
 
 function isNpmSwitch(hass: HomeAssistant, entityId: string): boolean {
@@ -83,7 +92,8 @@ function buildHost(hass: HomeAssistant, entityId: string, cfg: HostConfig | unde
       forward = `${attributes.forwarding_host}${attributes.forwarding_port !== undefined ? `:${attributes.forwarding_port}` : ""}`;
     }
   }
-  if (!domains.length) domains = [String(attributes.friendly_name ?? entityId)];
+  // Orphaned (restored) entities have no attributes left: name them after the entity name, e.g. `Proxy: "Wazuh"` → `Wazuh`.
+  if (!domains.length) domains = [entityLabel(hass, entityId, deviceId)];
 
   const name = cfg?.name || (type === "stream" ? domains[0] : shortenDomain(domains[0], config.hide_domain_suffix));
   const url = cfg?.url || (type === "stream" ? undefined : `https://${domains[0]}`);
@@ -170,8 +180,9 @@ export function certificateFor(host: NpmHost, certs: Certificate[]): Certificate
 }
 
 export function hostState(hass: HomeAssistant, entityId: string): HostState {
-  const state = hass.states[entityId]?.state;
-  return state === "on" ? "enabled" : state === "off" ? "disabled" : "unavailable";
+  const entity = hass.states[entityId];
+  if (entity?.attributes.restored === true) return "orphaned";
+  return entity?.state === "on" ? "enabled" : entity?.state === "off" ? "disabled" : "unavailable";
 }
 
 export function buildViews(hass: HomeAssistant, hosts: NpmHost[], certs: Certificate[], now = Date.now()): HostView[] {
@@ -188,8 +199,10 @@ export function buildViews(hass: HomeAssistant, hosts: NpmHost[], certs: Certifi
 }
 
 export function countViews(views: HostView[]): HostCounts {
-  const counts: HostCounts = { total: views.length, enabled: 0, disabled: 0, unavailable: 0 };
+  const counts: HostCounts = { total: 0, enabled: 0, disabled: 0, unavailable: 0, orphaned: 0 };
   for (const v of views) counts[v.state] += 1;
+  // Orphaned entities are no hosts any more: they are not "available".
+  counts.total = views.length - counts.orphaned;
   return counts;
 }
 
@@ -205,7 +218,7 @@ export function filterViews(views: HostView[], filter: HostFilter, search = ""):
   );
 }
 
-const STATE_RANK: Record<HostState, number> = { enabled: 0, disabled: 1, unavailable: 2 };
+const STATE_RANK: Record<HostState, number> = { enabled: 0, disabled: 1, unavailable: 2, orphaned: 3 };
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 export function sortViews(views: HostView[], config: CardConfig): HostView[] {

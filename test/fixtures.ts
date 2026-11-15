@@ -84,7 +84,21 @@ export function npmHass(overrides: Record<string, string> = {}, now = Date.now()
     language: "de",
     user: { is_admin: true },
     callService: async () => undefined,
+    callWS: async () => undefined as never,
   };
+}
+
+/**
+ * Adds an entity of a host that was deleted in NPM: Home Assistant restores it from the registry as
+ * `unavailable` with `restored: true` (and only the user-set name, here `Proxy: "Wazuh"`).
+ */
+export function addOrphan(hass: HomeAssistant, id = "switch.npm_proxy_wazuh_example_com", name = 'Proxy: "Wazuh"'): void {
+  hass.states[id] = {
+    entity_id: id,
+    state: "unavailable",
+    attributes: { friendly_name: name, restored: true, supported_features: 0 },
+  };
+  hass.entities[id] = { entity_id: id, platform: "npm_switches", device_id: "dev_npm" };
 }
 
 /** Adds a second NPM instance ("NPM Office") with one proxy host. */

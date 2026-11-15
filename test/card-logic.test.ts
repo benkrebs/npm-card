@@ -14,7 +14,7 @@ import {
 import { localize } from "../src/localize";
 import { resolveColor } from "../src/theme";
 import type { CardConfig } from "../src/types";
-import { addSecondInstance, npmHass } from "./fixtures";
+import { addOrphan, addSecondInstance, npmHass } from "./fixtures";
 
 const base: CardConfig = { type: "custom:npm-card" };
 const NOW = Date.UTC(2026, 10, 15, 12);
@@ -123,7 +123,25 @@ describe("state, counts, filter, sort", () => {
   it("counts available, active, disabled and unavailable hosts", () => {
     const hass = npmHass({ "switch.npm_proxy_grafana_example_com": "unavailable" });
     const counts = countViews(buildViews(hass, resolveHosts(hass, base), []));
-    expect(counts).toEqual({ total: 8, enabled: 5, disabled: 2, unavailable: 1 });
+    expect(counts).toEqual({ total: 8, enabled: 5, disabled: 2, unavailable: 1, orphaned: 0 });
+  });
+
+  it("recognises entities that NPM Switches no longer provides", () => {
+    const hass = npmHass();
+    addOrphan(hass);
+    addOrphan(hass, "switch.npm_404_gone_example_com", "NPM 404 Gone example com");
+    const hosts = resolveHosts(hass, base);
+    const wazuh = hosts.find((h) => h.entityId === "switch.npm_proxy_wazuh_example_com")!;
+    expect(wazuh).toMatchObject({ name: "Wazuh", type: "proxy" });
+    expect(hosts.find((h) => h.entityId === "switch.npm_404_gone_example_com")).toMatchObject({ name: "Gone example com", type: "dead" });
+
+    const views = buildViews(hass, hosts, []);
+    expect(views.find((v) => v.host === wazuh)?.state).toBe("orphaned");
+    // Orphans are not available hosts; a plain unavailable switch (NPM offline) is not an orphan.
+    hass.states["switch.npm_proxy_grafana_example_com"].state = "unavailable";
+    expect(countViews(buildViews(hass, hosts, []))).toEqual({ total: 8, enabled: 5, disabled: 2, unavailable: 1, orphaned: 2 });
+    expect(filterViews(views, "orphaned").map((v) => v.host.name).sort()).toEqual(["Gone example com", "Wazuh"]);
+    expect(sortViews(views, { ...base, sort: "enabled_first" }).at(-1)?.state).toBe("orphaned");
   });
 
   it("filters by state and search text", () => {

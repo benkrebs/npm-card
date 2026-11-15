@@ -86,6 +86,76 @@ export const cardStyles = css`
     background: color-mix(in srgb, var(--count-color) 24%, transparent);
   }
 
+  /* Orphaned entities */
+  .orphans {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 16px 8px;
+    padding: 6px 6px 6px 12px;
+    border-radius: 12px;
+    font-size: var(--ha-font-size-s, 13px);
+    background: color-mix(in srgb, var(--warning-color, #ffa600) 15%, transparent);
+    color: var(--primary-text-color);
+  }
+  .orphans > span {
+    flex: 1;
+  }
+  .orphans button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    border-radius: 16px;
+    font-weight: var(--ha-font-weight-medium, 500);
+    white-space: nowrap;
+  }
+  .orphans .delete-all {
+    padding-left: 8px;
+    background: var(--primary-color);
+    color: var(--text-primary-color, #fff);
+  }
+  .orphans .delete-all svg {
+    width: 18px;
+    height: 18px;
+  }
+  .orphans .yes {
+    background: var(--error-color, #db4437);
+    color: var(--text-primary-color, #fff);
+  }
+  .orphans .no {
+    background: var(--secondary-background-color, rgba(127, 127, 127, 0.15));
+  }
+  .delete {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin: 0 6px;
+    border-radius: 50%;
+    color: var(--secondary-text-color);
+    transition: background-color 0.2s, color 0.2s;
+  }
+  .delete:hover:not(:disabled) {
+    color: var(--error-color, #db4437);
+    background: color-mix(in srgb, var(--error-color, #db4437) 12%, transparent);
+  }
+  .delete svg {
+    width: 22px;
+    height: 22px;
+  }
+  .row.orphaned .name {
+    opacity: 0.6;
+    text-decoration: line-through;
+  }
+  .orphans button:disabled,
+  .delete:disabled,
+  .confirm button:disabled {
+    opacity: 0.5;
+  }
+
   /* Search */
   .search {
     display: flex;

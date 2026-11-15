@@ -12,6 +12,7 @@ export const DEFAULT_STATE_COLORS: Record<HostState, string> = {
   enabled: "var(--success-color, #43a047)",
   disabled: "var(--disabled-color, #9e9e9e)",
   unavailable: "var(--error-color, #db4437)",
+  orphaned: "var(--warning-color, #ffa600)",
 };
 
 export const CERT_COLORS = {
