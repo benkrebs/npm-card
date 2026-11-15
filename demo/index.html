@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <title>NPM Card – Demo</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Roboto, "Segoe UI", system-ui, sans-serif;
+      }
+      .theme {
+        display: grid;
+        grid-template-columns: repeat(2, 420px);
+        gap: 16px;
+        align-items: start;
+        padding: 24px;
+        background: var(--primary-background-color);
+      }
+      ha-card {
+        background: var(--ha-card-background, var(--card-background-color));
+        border-radius: 12px;
+        border: 1px solid var(--divider-color);
+      }
+      .light {
+        --primary-background-color: #fafafa;
+        --card-background-color: #ffffff;
+        --secondary-background-color: #f0f0f0;
+        --primary-text-color: #212121;
+        --secondary-text-color: #727272;
+        --divider-color: #e0e0e0;
+        --primary-color: #03a9f4;
+        --success-color: #43a047;
+        --warning-color: #ffa600;
+        --error-color: #db4437;
+        --disabled-color: #bdbdbd;
+      }
+      .dark {
+        --primary-background-color: #111111;
+        --card-background-color: #1c1c1c;
+        --secondary-background-color: #282828;
+        --primary-text-color: #e1e1e1;
+        --secondary-text-color: #9b9b9b;
+        --divider-color: #2f2f2f;
+        --primary-color: #03a9f4;
+        --success-color: #43a047;
+        --warning-color: #ffa600;
+        --error-color: #db4437;
+        --disabled-color: #6f6f6f;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="theme light"><div id="light-a"></div><div id="light-b"></div></div>
+    <div class="theme dark"><div id="dark-a"></div><div id="dark-b"></div></div>
+    <script type="module" src="./dist/demo.js"></script>
+  </body>
+</html>

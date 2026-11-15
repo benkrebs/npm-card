@@ -1,0 +1,28 @@
+{
+  "name": "npm-card",
+  "version": "0.1.0",
+  "description": "Home Assistant dashboard card for Nginx Proxy Manager: every host with a switch to enable or disable it (NPM Switches integration).",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "author": "Ben Krebs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/benkrebs/npm-card.git"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm test && npm run build",
+    "demo": "esbuild demo/demo.ts --bundle --format=esm --outfile=demo/dist/demo.js"
+  },
+  "devDependencies": {
+    "@mdi/js": "^7.4.47",
+    "esbuild": "^0.28.2",
+    "lit": "^3.3.3",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.12"
+  }
+}
