@@ -251,7 +251,13 @@ export const cardStyles = css`
     min-width: 0;
     text-align: left;
   }
-  .info:disabled,
+  .info > button,
+  .info > a {
+    display: block;
+    max-width: 100%;
+    text-align: left;
+  }
+  .info > button:disabled,
   .icon:disabled {
     cursor: default;
   }
@@ -263,6 +269,14 @@ export const cardStyles = css`
     text-overflow: ellipsis;
     white-space: nowrap;
     transition: opacity 0.2s;
+  }
+  a.name {
+    width: fit-content;
+    text-decoration: none;
+  }
+  a.name:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
   }
   .row.disabled .name {
     opacity: 0.6;

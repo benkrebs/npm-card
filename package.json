@@ -1,6 +1,6 @@
 {
   "name": "npm-card",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Home Assistant dashboard card for Nginx Proxy Manager: every host with a switch to enable or disable it (NPM Switches integration).",
   "private": true,
   "type": "module",

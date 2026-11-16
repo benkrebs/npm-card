@@ -111,6 +111,8 @@ export interface CardConfig {
   /** Filter that is active when the card loads. */
   filter?: HostFilter;
   tap_action?: TapAction;
+  /** The host name is a link that opens the domain in a new browser window. Default true. */
+  link_names?: boolean;
   /** Ask before a host is disabled. */
   confirm_disable?: boolean;
   /** List entities of hosts that no longer exist in NPM. Default true. */

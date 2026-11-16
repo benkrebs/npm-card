@@ -11,7 +11,7 @@ integration (Marketplace / HACS): all hosts are discovered automatically, nothin
 
 ## Features
 
-- One row per host: **domain name**, type icon, status and a **switch** that enables or disables the host in NPM.
+- One row per host: **domain name as link** (opens the site in a new browser window), type icon, status and a **switch** that enables or disables the host in NPM.
 - **Header counters**: available, active, disabled (plus unavailable, when a switch is unavailable).
   Tap a counter to show only those hosts.
 - Proxy hosts, redirections, streams and 404 hosts, **grouped by type** (each type can be hidden).
@@ -113,7 +113,8 @@ entities:
 | `hide_domain_suffix` | –              | Domain suffixes removed from the shown name, e.g. `[example.com]`.                   |
 | `sort`               | `name`         | `name`, `enabled_first`, `disabled_first`, `config` (order of `entities`; default when `entities` is set). |
 | `filter`             | `all`          | Filter when the card loads: `all`, `enabled`, `disabled`, `orphaned`.                |
-| `tap_action`         | `more-info`    | Tap on icon / name: `more-info`, `open` (open the domain in a new tab), `none`.      |
+| `link_names`         | `true`         | The host name is a link to `https://<domain>` (or the host's `url`) that opens in a new browser window, outside Home Assistant. Not for streams and orphaned entries. |
+| `tap_action`         | `more-info`    | Tap on the icon / second line (and on the name when it is no link): `more-info`, `open` (open the domain in a new tab), `none`. |
 | `confirm_disable`    | `false`        | Ask "Disable?" before a host is disabled.                                            |
 | `show_orphaned`      | `true`         | List entities of hosts that were deleted in NPM (struck through, with an *orphaned* counter). |
 | `allow_delete`       | `true`         | Offer administrators to delete those entities (row button and "Delete all").         |
@@ -129,7 +130,7 @@ Colors accept Home Assistant theme color names (`red`, `deep-orange`, `amber`, `
 | `entity` | Switch of NPM Switches (required).                               |
 | `name`   | Name shown instead of the domain.                                |
 | `icon`   | Icon instead of the type icon, e.g. `mdi:cloud`.                 |
-| `url`    | URL opened by `tap_action: open`. Default `https://<domain>`.    |
+| `url`    | URL of the name link and of `tap_action: open`. Default `https://<domain>`. |
 
 The visual editor edits `entities` as a plain list of switches; host objects with options are edited in YAML.
 

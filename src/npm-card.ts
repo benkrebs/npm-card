@@ -411,10 +411,14 @@ export class NpmCard extends LitElement {
               ${this._icon(host.icon, TYPE_ICONS[host.type])}
             </button>`
           : nothing}
-        <button class="info" title=${title} ?disabled=${!tappable} @click=${() => this._tap(host)}>
-          <div class="name">${host.name}</div>
-          <div class="secondary">${this._renderSecondary(view, showType, multipleInstances)}</div>
-        </button>
+        <div class="info">
+          ${config.link_names !== false && host.url && view.state !== "orphaned"
+            ? html`<a class="name" href=${host.url} target="_blank" rel="noopener noreferrer" title=${host.url}>${host.name}</a>`
+            : html`<button class="name" title=${title} ?disabled=${!tappable} @click=${() => this._tap(host)}>${host.name}</button>`}
+          <button class="secondary" title=${title} ?disabled=${!tappable} @click=${() => this._tap(host)}>
+            ${this._renderSecondary(view, showType, multipleInstances)}
+          </button>
+        </div>
         ${this._renderCertificate(view)} ${this._renderToggle(view)}
       </div>
     `;
